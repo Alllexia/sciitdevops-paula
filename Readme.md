@@ -1,6 +1,6 @@
-# Project Title
+# DevOps Final Project
 
-A short description of your project, what it does, and why it's useful.
+CI/CD pipeline for a cloud website displaying the weather
 
 ---
 
@@ -17,12 +17,17 @@ A short description of your project, what it does, and why it's useful.
 
 ## About
 
-Provide a more detailed description of your project here. You can include:
+An end-to-end CI/CD pipeline that:
 
-- The main goal of the project
-- Technologies used
-- Key features
-- Screenshots (if applicable)
+1. Deploys infrastructure (VMs for k3s and application servers) using Terraform.
+
+2. Configures the infrastructure using Ansible.
+
+3. Sets up a GitOps workflow using ArgoCD to deploy Jenkins into k3s.
+
+4. Uses Jenkins to deploy a web app that dynamically fetches weather forecasts based on user input.
+
+5. Implements observability (logs, monitoring, and alerting).
 
 ---
 
@@ -30,7 +35,8 @@ Provide a more detailed description of your project here. You can include:
 
 ### Prerequisites
 
-- List any software or tools required to run the project (e.g., Node.js, Python, etc.)
+#### Software or tools required to run the project:
+
 
 ### Steps
 
