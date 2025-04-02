@@ -16,7 +16,7 @@ jobs:
       with:
         azcliversion: latest
         inlineScript: |
-          az ad app federated-credential create --id "c4df5f7d-a43e-4993-9644-43c574adb92c" --parameters "credentials.json"
+          az ad app federated-credential create --id "c4df5f7d-a43e-4993-9644-43c574adb92c" --parameters "credential.json"
     - name: Azure CLI Login
       uses: azure/login@v2
       with:
