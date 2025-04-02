@@ -18,12 +18,12 @@ jobs:
         tenant-id: "${{ secrets.AZ_TENANT_ID }}"
         subscription-id: "${{ secrets.AZ_SUBSCRIPTION_ID }}"
     - name: Azure CLI script 
-      working-directory: ./azure
       uses: azure/cli@v2
       with:
         azcliversion: latest
         inlineScript: |
           az ad app federated-credential create --id "c4df5f7d-a43e-4993-9644-43c574adb92c" --parameters credential.json
+      working-directory: ./azure
     - name: Terraform Init
       working-directory: ./azure
       run: |
