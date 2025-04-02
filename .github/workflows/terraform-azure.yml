@@ -1,5 +1,5 @@
 name: Terraform Apply on AWS and Azure
-run-name: ${{ github.actor }} is deploying AWS and Azure
+run-name: ${{ github.actor }} is deploying Azure
 on:
   workflow_dispatch:
 #Special permissions required for OIDC authentication
@@ -13,8 +13,7 @@ env:
   ARM_SUBSCRIPTION_ID: "${{ secrets.AZ_SUBSCRIPTION_ID }}"
   ARM_TENANT_ID: "${{ secrets.AZ_TENANT_ID }}"
 jobs:
-  jobs: 
-  test:
+  Azure:
     permissions:
       id-token: write # Require write permission to Fetch an OIDC token.
 
