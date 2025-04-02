@@ -23,7 +23,6 @@ jobs:
         azcliversion: latest
         inlineScript: |
           az ad app federated-credential create --id "c4df5f7d-a43e-4993-9644-43c574adb92c" --parameters credential.json
-      working-directory: ./azure
     - name: Terraform Init
       working-directory: ./azure
       run: |
