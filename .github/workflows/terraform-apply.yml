@@ -66,8 +66,8 @@ jobs:
      
         # Save instance IPs and create inventory file for Ansible
         - name: Save instance IPs and create inventory
-           working-directory: ./pipeline/aws
-           run: |
+          working-directory: ./pipeline/aws
+          run: |
             INSTANCE_IPS=$(terraform output -json instance_ips)
             echo "$INSTANCE_IPS" | jq -r '.[]' > ../ansible/instance-ips.txt
             echo "[servers]" > ansible/inventory.ini
