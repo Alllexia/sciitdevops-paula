@@ -1,6 +1,7 @@
 name: Terraform Apply on AWS and Azure
 run-name: ${{ github.actor }} is deploying Azure
 on:
+  push
   workflow_dispatch:
 #Special permissions required for OIDC authentication
 permissions:
