@@ -21,7 +21,7 @@ jobs:
     steps:
 
     - name: Terraform Init
-      working-directory: ./azure
+      working-directory: azure
       run: |
        terraform init
        terraform apply -auto-approve
