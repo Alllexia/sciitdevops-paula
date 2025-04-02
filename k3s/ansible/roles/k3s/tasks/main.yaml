@@ -1,0 +1,61 @@
+---
+- name: Wait for SSH to become available
+  wait_for:
+    port: 22
+    host: "{{ inventory_hostname }}"
+    timeout: 300
+    state: started
+
+- name: Install required packages
+  apt:
+    name:
+      - curl
+      - unzip
+    update_cache: yes
+    state: present
+
+- name: Download AWS CLI
+  get_url:
+    url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+    dest: /tmp/awscliv2.zip
+
+- name: Unpack AWS CLI
+  unarchive:
+    src: /tmp/awscliv2.zip
+    dest: /tmp/
+    remote_src: yes
+
+- name: Install AWS CLI
+  command: /tmp/aws/install
+
+- name: Get public IP
+  shell: curl -s http://169.254.169.254/latest/meta-data/public-ipv4
+  register: public_ip
+  changed_when: false
+
+- name: Install K3s with TLS SAN
+  shell: |
+    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--tls-san {{ public_ip.stdout }}" sh -
+  args:
+    executable: /bin/bash
+
+- name: Wait for kubeconfig
+  wait_for:
+    path: /etc/rancher/k3s/k3s.yaml
+    timeout: 60
+
+- name: Replace localhost with public IP in kubeconfig
+  shell: |
+    sed "s/127.0.0.1/{{ public_ip.stdout }}/" /etc/rancher/k3s/k3s.yaml > /tmp/kubeconfig.yaml
+
+- name: Fetch kubeconfig from master
+  fetch:
+    src: /tmp/kubeconfig.yaml
+    dest: ../kubeconfig-from-ec2.yaml
+    flat: yes
+
+- name: Fetch join token from master
+  fetch:
+    src: /var/lib/rancher/k3s/server/node-token
+    dest: ../join-token.txt
+    flat: yes

@@ -1,0 +1,7 @@
+- name: Run Terraform
+  community.general.terraform:
+    project_path: "{{ playbook_dir }}/roles/infra" 
+    state: present
+    force_init: true
+    lock: true
+  tags: [infra]

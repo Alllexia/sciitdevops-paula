@@ -1,0 +1,29 @@
+---
+- name: Run Terraform to deploy infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - { role: infra, tags: ["infra"] }
+
+- name: Provision master node
+  hosts: master
+  become: true
+  roles:
+    - { role: k3s, tags: ["k3s"] }
+  
+- name: Deploy ArgoCD into K3s
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    kubeconfig_path: "/tmp/kubeconfig.yaml"
+  roles:
+    - { role: argocd, tags: ["argocd"] }
+  
+- name: Setup ArgoCD port-forward on EC2
+  hosts: master
+  become: true
+  gather_facts: false
+  roles:
+    - { role: port-fw, tags: ["port-fw"] }
