@@ -11,19 +11,20 @@ jobs:
   Deploy-Azure:
     runs-on: ubuntu-latest
     steps:
-    - name: Azure CLI script 
-      uses: azure/cli@v2
-      with:
-        azcliversion: latest
-        inlineScript: |
-          az ad app federated-credential create --id "c4df5f7d-a43e-4993-9644-43c574adb92c" --parameters "credential.json"
+
     - name: Azure CLI Login
       uses: azure/login@v2
       with:
         client-id: "${{ secrets.AZ_CLIENT_ID }}"
         tenant-id: "${{ secrets.AZ_TENANT_ID }}"
         subscription-id: "${{ secrets.AZ_SUBSCRIPTION_ID }}"
-
+    - name: Azure CLI script 
+      working-directory: ./azure
+      uses: azure/cli@v2
+      with:
+        azcliversion: latest
+        inlineScript: |
+          az ad app federated-credential create --id "c4df5f7d-a43e-4993-9644-43c574adb92c" --parameters "credential.json"
     - name: Terraform Init
       working-directory: ./azure
       run: |
