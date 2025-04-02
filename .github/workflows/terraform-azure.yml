@@ -16,7 +16,7 @@ jobs:
       with:
         azcliversion: latest
         inlineScript: |
-          az ad app federated-credential create --id "c4df5f7d-a43e-4993-9644-43c574adb92c" --parameters credential.json
+          az ad app federated-credential create --id "c4df5f7d-a43e-4993-9644-43c574adb92c" --parameters '{"name": "github-actions","issuer": "https://token.actions.githubusercontent.com","subject": "repo:sciitdevops-paula/tf:ref:refs/heads/main","audiences": ["api://AzureADTokenExchange"]}'
     - name: Azure CLI Login
       uses: azure/login@v2
       with:
