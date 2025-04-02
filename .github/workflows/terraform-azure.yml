@@ -1,4 +1,4 @@
-name: Terraform Apply on AWS and Azure
+name: Terraform Apply on Azure
 run-name: ${{ github.actor }} is deploying Azure
 on:
   push
@@ -7,22 +7,24 @@ permissions:
   id-token: write
   contents: read
   pull-requests: write
-#These environment variables are used by the terraform azure provider to setup OIDD authenticate. 
-env:
-  ARM_CLIENT_ID: "${{ secrets.AZ_CLIENT_ID }}"
-  ARM_SUBSCRIPTION_ID: "${{ secrets.AZ_SUBSCRIPTION_ID }}"
-  ARM_TENANT_ID: "${{ secrets.AZ_TENANT_ID }}"
 jobs:
-  Azure:
+  jobs: 
+  test:
     permissions:
       id-token: write # Require write permission to Fetch an OIDC token.
 
     runs-on: ubuntu-latest
     steps:
-
+    - name: Azure CLI Login
+      uses: azure/login@v2
+      with:
+        client-id: "${{ secrets.AZ_CLIENT_ID }}"
+        tenant-id: "${{ secrets.AZ_TENANT_ID }}"
+        subscription-id: "${{ secrets.AZ_SUBSCRIPTION_ID }}"
     - name: Terraform Init
+      working-directory: ./azure
       run: |
-       terraform init
-       terraform apply -auto-approve
-       echo $(terraform output -raw public_ip_address) > instance-ips-az.txt
-      
+        terraform init
+        terraform apply -auto-approve
+        echo $(terraform output -raw public_ip_address) > instance-ips-az.txt
+          
