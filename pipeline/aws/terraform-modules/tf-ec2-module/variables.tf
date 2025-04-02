@@ -1,7 +1,7 @@
 variable "region" {
   description = "The AWS region to deploy resources in"
   type        = string
-  default     = "eu-central-1"
+  default     = "eu-west-1"
 }
 
 variable "vpc_cidr" {
@@ -25,13 +25,13 @@ variable "private_subnet_cidr" {
 variable "public_subnet_az" {
   description = "The availability zone for the public subnet"
   type        = string
-  default     = "eu-central-1a"
+  default     = "eu-west-1a"
 }
 
 variable "private_subnet_az" {
   description = "The availability zone for the private subnet"
   type        = string
-  default     = "eu-central-1b"
+  default     = "eu-west-1b"
 }
 
 variable "owner" {

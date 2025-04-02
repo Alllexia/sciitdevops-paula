@@ -1,2 +1,0 @@
-owner = "Marius"
-name  = "Dev"

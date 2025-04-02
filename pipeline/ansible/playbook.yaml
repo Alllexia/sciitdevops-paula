@@ -1,0 +1,321 @@
+---
+- hosts: all
+  become_user: root
+  become: true
+  tasks:
+    - name: Install pip3 and unzip
+      apt:
+        update_cache: yes
+        pkg:
+        - python3-pip
+        - unzip
+      register: result
+      until: result is not failed
+      retries: 5
+      delay: 5
+    - name: Add Docker GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+    - name: Add Docker Repository
+      apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu focal stable
+        state: present
+    - name: Update apt and install docker-ce
+      apt:
+        name: docker-ce
+        state: latest
+        update_cache: true
+    - name: Install Docker module for Python
+      pip:
+        name: docker
+    - name: Install ArgoCD CLI binary
+      get_url:
+        url: "https://github.com/argoproj/argo-cd/releases/download/{{ argocd_release.tag }}/argocd-linux-amd64"
+        dest: "{{ bin_dir }}/argocd"
+        mode: "+x"
+    - name: Get latest kubectl CLI release
+      github_release:
+        user: kubernetes
+        repo: kubernetes
+        action: latest_release
+      register: k8s_release
+
+    - name: Get kubectl binary
+      unarchive:
+        src: "https://pkgs.k8s.io/{{ k8s_release.tag }}/kubernetes-client-linux-amd64.tar.gz"
+        dest: /tmp
+        remote_src: yes
+
+    - name: Install kubectl binary
+      copy:
+        src: /tmp/kubernetes/client/bin/kubectl
+        dest: "{{ bin_dir }}/kubectl"
+        mode: "+x"
+    - name: Get latest oc binary
+      unarchive:
+        src: "https://mirror.openshift.com/pub/openshift-v{{ ocp_major_version }}/clients/ocp/latest/openshift-client-linux.tar.gz"
+        dest: "{{ bin_dir }}"
+        remote_src: yes
+
+    - name: Install oc binary
+      file:
+        path: "{{ bin_dir }}/oc"
+        state: file
+        mode: "+x"
+    scope: cluster
+
+    state: present
+
+    kubeconfig: "{{ lookup('env', 'HOME') }}/.minishift/machines/minishift_kubeconfig"
+
+    namespace: argocd
+
+    internal_registry: ""
+
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: argocd-operator-admin
+    rules:
+    - apiGroups:
+      - ""
+      resources:
+      - configmaps
+      - endpoints
+      - events
+      - persistentvolumeclaims
+      - pods
+      - secrets
+      - serviceaccounts
+      - services
+      - services/finalizers
+      verbs:
+      - '*'
+    - apiGroups:
+      - apps
+      resources:
+      - deployments
+      - replicasets
+      - statefulsets
+      verbs:
+      - '*'
+    - apiGroups:
+      - apps
+      resourceNames:
+      - argocd-operator
+      resources:
+      - deployments/finalizers
+      verbs:
+      - update
+    - apiGroups:
+      - argoproj.io
+      resources:
+      - argocds
+      - argocds/finalizers
+      - argocds/status
+      - argocdexports
+      - argocdexports/finalizers
+      - argocdexports/status
+      verbs:
+      - '*'
+    - apiGroups:
+      - autoscaling
+      resources:
+      - horizontalpodautoscalers
+      verbs:
+      - '*'
+    - apiGroups:
+      - batch
+      resources:
+      - cronjobs
+      - jobs
+      verbs:
+      - '*'
+    - apiGroups:
+      - extensions
+      resources:
+      - ingresses
+      verbs:
+      - '*'
+    - apiGroups:
+      - monitoring.coreos.com
+      resources:
+      - prometheuses
+      - servicemonitors
+      verbs:
+      - '*'
+    - apiGroups:
+      - route.openshift.io
+      resources:
+      - routes
+      - routes/custom-host
+      verbs:
+      - '*'
+     
+    - name: Get latest ArgoCD CLI release
+      github_release:
+        user: argoproj-labs
+        repo: argocd-operator
+        action: latest_release
+      register: operator_release
+
+    - name: Get latest ArgoCD Operator code from GitHub
+      git:
+        repo: https://github.com/argoproj-labs/argocd-operator.git
+        dest: "{{ role_path }}/files/argocd-operator"
+        version: "{{ operator_release.tag }}"
+      when: operator_release_tag == "latest"
+
+    - name: Get {{ operator_release_tag }} ArgoCD Operator code from GitHub
+      git:
+        repo: https://github.com/argoproj-labs/argocd-operator.git
+        dest: "{{ role_path }}/files/argocd-operator"
+        version: "{{ operator_release_tag }}"
+      when: operator_release_tag != "latest"
+
+    - name: Namespace {{ namespace }} is {{ state }}
+      k8s:
+        name: "{{ namespace }}" 
+        kind: Namespace
+        api_version: v1
+        state: "{{ state }}"
+        kubeconfig: "{{ kubeconfig }}"
+        
+    - name: Get default ArgoCD operator.yaml
+      set_fact:
+        operator_json: "{{ lookup('file', \"{{ role_path }}/files/argocd-operator/deploy/operator.yaml\") | from_yaml }}"
+      when: scope == 'cluster' or internal_registry != ""
+
+    - name: Set operator_image
+      set_fact:
+        operator_image: "{{ operator_json.spec.template.spec.containers[0].image }}"
+      when: scope == 'cluster' and internal_registry == ""
+
+    - name: Set internal_registry + operator_image
+      set_fact:
+        operator_image: "{{ internal_registry }}/{{ operator_json.spec.template.spec.containers[0].image }}"
+      when: internal_registry != ""
+
+    - name: Populate cluster-operator.yaml
+      template:
+        src: "{{ role_path }}/templates/cluster-scoped-operator.yaml.j2"
+        dest: "{{ role_path }}/files/argocd-operator/deploy/operator.yaml"
+        # Need to force since we're replacing the default
+        force: yes
+      when: scope == 'cluster' or internal_registry != ""
+     - name: "{{ 'Install' if state == 'present' else 'Remove' }} CRDs"
+      k8s:
+        namespace: "{{ namespace }}" 
+        src: "{{ role_path }}/files/argocd-operator/deploy/{{ item }}"
+        state: "{{ state }}"
+        kubeconfig: "{{ kubeconfig }}"
+      loop:
+        - argo-cd/argoproj.io_applications_crd.yaml
+        - argo-cd/argoproj.io_appprojects_crd.yaml
+        - crds/argoproj.io_argocdexports_crd.yaml
+        - crds/argoproj.io_argocds_crd.yaml   
+
+    - name: "{{ 'Create' if state == 'present' else 'Remove' }} argocd-operator ClusterRole"
+      k8s:
+        state: "{{ state }}"
+        src: "{{ role_path }}/static/argocd-operator-clusterrole.yaml"
+        kubeconfig: "{{ kubeconfig }}"
+      when: scope == 'cluster'
+
+    - name: "{{ 'Create' if state == 'present' else 'Remove' }} cluster-admin Rolebinding for argocd-application-controller service account"
+      k8s:
+        state: "{{ state }}"
+        kubeconfig: "{{ kubeconfig }}"
+        definition:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          metadata:
+            labels:
+              app.kubernetes.io/component: application-controller
+              app.kubernetes.io/name: argocd-application-controller
+              app.kubernetes.io/part-of: argocd
+            name: argocd-application-controller-cluster-admin
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: cluster-admin
+          subjects:
+          - kind: ServiceAccount
+            name: argocd-application-controller
+            namespace: "{{ namespace }}"
+      when: scope == 'cluster'
+
+    - name: "{{ 'Create' if state == 'present' else 'Remove' }} argocd-operator ClusterRolebinding"
+      k8s:
+        state: "{{ state }}"
+        kubeconfig: "{{ kubeconfig }}"
+        definition:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          metadata:
+            labels:
+              app.kubernetes.io/component: argocd-operator
+              app.kubernetes.io/name: argocd-operator-clusterrolebinding
+              app.kubernetes.io/part-of: argocd
+            name: argocd-operator-admin
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: argocd-operator-admin
+          subjects:
+          - kind: ServiceAccount
+            name: argocd-operator
+            namespace: "{{ namespace }}" 
+      when: scope == 'cluster'
+
+    - name: "{{ 'Install' if state == 'present' else 'Remove' }} {{ scope }} scoped ArgoCD operator"
+      k8s:
+        namespace: "{{ namespace }}" 
+        src: "{{ role_path }}/files/argocd-operator/deploy/{{ item }}"
+        state: "{{ state }}" 
+        kubeconfig: "{{ kubeconfig }}"
+      loop:
+        - service_account.yaml
+        - role.yaml
+        - role_binding.yaml
+        - operator.yaml
+      when: state == 'present'
+    - name: Clean-up files dir
+      file:
+        path: "{{ role_path }}/files/argocd-operator"
+        state: absent
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: argocd-operator
+      namespace: "{{ namespace }}"
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          name: argocd-operator
+      template:
+        metadata:
+          labels:
+            name: argocd-operator
+        spec:
+          serviceAccountName: argocd-operator
+          containers:
+            - name: argocd-operator
+              image: "{{ operator_image }}"
+              command:
+              - argocd-operator
+              imagePullPolicy: Always
+              env:
+                - name: WATCH_NAMESPACE
+                  value: ""
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: OPERATOR_NAME
+                  value: "argocd-operator"
+              resources: {}
+
+...

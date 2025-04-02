@@ -1,6 +1,6 @@
 output "vpc_id" {
   description = "The ID of the VPC"
-  value       = aws_vpc.mariusb-vpc.id
+  value       = aws_vpc.paula-vpc.id
 }
 
 output "public_subnet_id" {
@@ -15,6 +15,6 @@ output "private_subnet_id" {
 
 output "security_group_id" {
   description = "The ID of the security group"
-  value       = aws_security_group.mariusb-sg.id
+  value       = aws_security_group.paula-sg.id
 }
 
