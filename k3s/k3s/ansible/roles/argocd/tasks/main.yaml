@@ -1,0 +1,48 @@
+- name: Create argocd namespace
+  shell: kubectl create namespace argocd || true
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+
+- name: Install ArgoCD
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    kubectl apply --validate=false -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+
+- name: Expose ArgoCD via NodePort
+  shell: |
+    kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "NodePort"}}'
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+
+- name: Wait for ArgoCD admin secret to be available
+  shell: |
+    kubectl get secret argocd-initial-admin-secret -n argocd
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  register: check_secret
+  retries: 10
+  delay: 10
+  until: check_secret.rc == 0
+
+- name: Get ArgoCD admin password
+  shell: |
+    kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  register: argocd_admin_password
+
+- name: Fail if admin password is empty
+  fail:
+    msg: "ArgoCD admin password is empty! Nu-l pot trimite în SSM!"
+  when: argocd_admin_password.stdout == ""
+
+- name: Upload ArgoCD admin password to SSM
+  shell: |
+    aws ssm put-parameter \
+      --name "/k3s/argocd/admin-password" \
+      --type "SecureString" \
+      --overwrite \
+      --value "{{ argocd_admin_password.stdout }}" \
+      --region eu-west-1

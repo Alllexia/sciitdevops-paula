@@ -1,0 +1,19 @@
+- name: Destroy all infrastructure
+  hosts: localhost
+  gather_facts: false
+  connection: local
+
+  tasks:
+    - name: Destroy infrastructure with Terraform
+      community.general.terraform:
+        project_path: "{{ playbook_dir }}/roles/infra"
+        state: absent
+        force_init: true
+        lock: true
+
+    - name: Delete SSH private key from Secrets Manager (hard delete)
+      shell: |
+        aws secretsmanager delete-secret \
+          --secret-id deployer-key \
+          --force-delete-without-recovery \
+          --region eu-west-1

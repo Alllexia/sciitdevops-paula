@@ -1,0 +1,26 @@
+---
+- name: Apply Terraform with Ansible
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  tasks:
+    - name: Init Terraform
+      community.general.terraform:
+        project_path: "./infra"
+        state: "present"
+        force_init: true
+        backend_config:
+          bucket: mariusb-tf-state
+          key: aws/deployment.tfstate
+          region: eu-west-1
+
+    - name: Apply Terraform
+      community.general.terraform:
+        project_path: "./infra"
+        state: "present"
+        force_init: false
+        workspace: default
+        variables:
+          aws_region: eu-west-1
+        lock: true

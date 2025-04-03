@@ -1,0 +1,36 @@
+- name: Set correct permissions for kubeconfig
+  become: true
+  shell: |
+    chmod 600 /etc/rancher/k3s/k3s.yaml
+    chown ubuntu:ubuntu /etc/rancher/k3s/k3s.yaml
+
+- name: Create systemd service for ArgoCD port-forward
+  become: true
+  copy:
+    dest: /etc/systemd/system/argocd-port-forward.service
+    content: |
+      [Unit]
+      Description=ArgoCD Port Forward
+      After=network.target
+
+      [Service]
+      ExecStart=/usr/local/bin/kubectl port-forward --address 0.0.0.0 svc/argocd-server -n argocd 8080:80
+      Restart=always
+      RestartSec=5
+      User=ubuntu
+      Environment=KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Reload systemd daemon
+  become: true
+  systemd:
+    daemon_reload: true
+
+- name: Enable and start ArgoCD port-forward service
+  become: true
+  systemd:
+    name: argocd-port-forward
+    enabled: true
+    state: started

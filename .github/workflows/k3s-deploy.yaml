@@ -1,0 +1,110 @@
+﻿name: Deploy Infra
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: k3s
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python + Ansible
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip unzip
+          pip3 install ansible boto3 botocore
+          ansible-galaxy collection install community.general
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
+          sudo chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Install ArgoCD CLI
+        run: |
+          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          sudo chmod +x argocd
+          sudo mv argocd /usr/local/bin/
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+
+      - name: Install Terraform
+        run: |
+          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+          sudo apt update && sudo apt install -y terraform
+
+      - name: Run Terraform via Ansible
+        run: ansible-playbook ansible/site.yaml --tags infra
+
+      - name: Wait for SSH on master to be ready
+        run: |
+          MASTER_IP=$(aws ssm get-parameter --name "/k3s/master_ip" --query "Parameter.Value" --output text)
+
+          echo "⌛ Aștept ca portul 22 să devină activ pe $MASTER_IP..."
+          for i in {1..30}; do
+            if nc -z $MASTER_IP 22; then
+              echo "✅ SSH e disponibil!"
+              exit 0
+            fi
+            echo "🔁 Încerc din nou în 10s..."
+            sleep 10
+          done
+
+          echo "💥 SSH nu e disponibil după 5 minute."
+          exit 1
+
+      - name: Download SSH private key from Secrets Manager
+        run: |
+          aws secretsmanager get-secret-value \
+            --secret-id deployer-key \
+            --query SecretString \
+            --output text > deployer-key.pem
+          chmod 600 deployer-key.pem
+
+      - name: Make generate_inventory.sh executable
+        run: chmod +x ./ansible/generate_inventory.sh
+
+      - name: Generate dynamic inventory
+        run: ./ansible/generate_inventory.sh
+
+      - name: Run provisioning
+        run: ansible-playbook -i ansible/inventory.ini ansible/site.yaml --tags k3s
+
+      - name: Upload kubeconfig to SSM
+        run: |
+          aws ssm put-parameter \
+            --name "/k3s/kubeconfig" \
+            --type "String" \
+            --overwrite \
+            --value file://kubeconfig-from-ec2.yaml \
+            --region eu-west-1
+
+      - name: Upload join token to SSM
+        run: |
+          aws ssm put-parameter \
+            --name "/k3s/join-token" \
+            --type "String" \
+            --overwrite \
+            --value file://join-token.txt \
+            --region eu-west-1
+            
+      - name: Set KUBECONFIG for kubectl
+        run: |
+          cp kubeconfig-from-ec2.yaml kubeconfig.yaml
+          export KUBECONFIG=$PWD/kubeconfig.yaml
+          kubectl get nodes
+

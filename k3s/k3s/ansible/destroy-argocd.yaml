@@ -1,0 +1,38 @@
+---
+- name: Destroy ArgoCD Resources
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Delete ArgoCD namespace
+      kubernetes.core.k8s:
+        state: absent
+        namespace: argocd
+        kind: Namespace
+      tags: ["argocd_destroy"]
+
+    - name: Delete ArgoCD resources (services, pods, etc.)
+      kubernetes.core.k8s:
+        state: absent
+        name: "{{ item }}"
+        namespace: argocd
+        kind: Service
+      loop:
+        - argocd-server
+        - argocd-repo-server
+        - argocd-dex-server
+        - argocd-notifications-controller
+        - argocd-redis
+      tags: ["argocd_destroy"]
+
+    - name: Delete ArgoCD ConfigMaps and Secrets
+      kubernetes.core.k8s:
+        state: absent
+        name: "{{ item }}"
+        namespace: argocd
+        kind: ConfigMap
+      loop:
+        - argocd-cm
+        - argocd-rbac-cm
+        - argocd-secret
+      tags: ["argocd_destroy"]

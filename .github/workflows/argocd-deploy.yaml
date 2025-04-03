@@ -1,0 +1,57 @@
+name: Deploy ArgoCD
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-argocd:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: k3s
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python + Ansible
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip unzip
+          pip3 install ansible boto3 botocore
+          ansible-galaxy collection install community.general
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+
+      - name: Download SSH private key from Secrets Manager
+        run: |
+          aws secretsmanager get-secret-value \
+            --secret-id deployer-key \
+            --query SecretString \
+            --output text > deployer-key.pem
+          chmod 600 deployer-key.pem
+
+      - name: Download kubeconfig from SSM
+        run: |
+          aws ssm get-parameter \
+            --name /k3s/kubeconfig \
+            --query 'Parameter.Value' \
+            --output text > /tmp/kubeconfig.yaml
+
+      - name: Run ArgoCD role
+        run: ansible-playbook -i ansible/inventory.ini ansible/site.yaml --tags argocd
+
+      - name: Make generate_inventory.sh executable
+        run: chmod +x ./ansible/generate_inventory.sh
+
+      - name: Generate dynamic inventory
+        run: ./ansible/generate_inventory.sh
+
+      - name: Run ArgoCD port-forward role (on EC2 master)
+        run: ansible-playbook -i ansible/inventory.ini ansible/site.yaml --tags port-fw
