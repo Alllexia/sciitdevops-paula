@@ -65,5 +65,10 @@ jobs:
           echo $(terraform output -raw public_ip_address) > instance-ips-az.txt 
     - name: Save private key
       run: echo "${{ steps.terraform.outputs.private_key }}" > id_rsa
-          
+      
+    - name: Upload SSH private key
+      uses: actions/upload-artifact@v4
+      with:
+        name: ssh-private-key
+        path: id_rsa      
             
