@@ -20,6 +20,3 @@ terraform {
 provider "azurerm" {
   features {}
 }
-provider "azapi" {
-  use_azuread_auth = true
-}
