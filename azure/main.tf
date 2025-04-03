@@ -122,15 +122,6 @@ resource "azurerm_linux_virtual_machine" "my_terraform_vm" {
     public_key = tls_private_key.ssh_key.public_key_openssh
   }
 
-  output "public_key" {
-    value = tls_private_key.ssh_key.public_key_openssh
-  }
-
-  output "private_key" {
-    value     = tls_private_key.ssh_key.private_key_pem
-    sensitive = true
-  }
-
   boot_diagnostics {
     storage_account_uri = azurerm_storage_account.my_storage_account.primary_blob_endpoint
   }
