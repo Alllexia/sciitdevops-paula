@@ -24,7 +24,34 @@ jobs:
         client-id: ${{ secrets.AZ_CLIENT_ID }}
         tenant-id: ${{ secrets.AZ_TENANT_ID }}
         subscription-id: ${{ secrets.AZ_SUBSCRIPTION_ID }}
-           
+        
+    - name: Set up Python + Ansible
+      run: |
+        sudo apt update
+        sudo apt install -y python3-pip unzip
+        pip3 install ansible boto3 botocore
+        ansible-galaxy collection install community.general
+
+    - name: Install kubectl
+      run: |
+        curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
+        sudo chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/
+
+    - name: Install ArgoCD CLI
+      run: |
+        curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+        sudo chmod +x argocd
+        sudo mv argocd /usr/local/bin/
+
+
+    - name: Install Terraform
+      run: |
+        curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+        echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+        sudo apt update && sudo apt install -y terraform
+
+      
     - name: Terraform Init
       run: |+
           terraform init
