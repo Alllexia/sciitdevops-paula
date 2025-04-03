@@ -10,7 +10,8 @@ permissions:
 jobs:
   Deploy-Azure:
     runs-on: ubuntu-latest
-    
+    env:
+      TF_VAR_RG_NAME: ${{ secrets.RG_NAME }}
     defaults:
       run:
         working-directory: azure

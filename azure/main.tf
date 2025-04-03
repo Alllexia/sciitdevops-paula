@@ -1,24 +1,20 @@
-resource "random_pet" "rg_name" {
-  prefix = var.resource_group_name_prefix
-}
-
-resource "azurerm_resource_group" "rg" {
-  location = var.resource_group_location
-  name     = random_pet.rg_name.id
+# Reference existing resource group
+data "azurerm_resource_group" "main" {
+  name = var.RG_NAME
 }
 
 # Create virtual network
 resource "azurerm_virtual_network" "my_terraform_network" {
   name                = "myVnet"
   address_space       = ["10.0.0.0/16"]
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
 }
 
 # Create subnet
 resource "azurerm_subnet" "my_terraform_subnet" {
   name                 = "mySubnet"
-  resource_group_name  = azurerm_resource_group.rg.name
+  resource_group_name  = data.azurerm_resource_group.main.name
   virtual_network_name = azurerm_virtual_network.my_terraform_network.name
   address_prefixes     = ["10.0.1.0/24"]
 }
@@ -26,16 +22,16 @@ resource "azurerm_subnet" "my_terraform_subnet" {
 # Create public IPs
 resource "azurerm_public_ip" "my_terraform_public_ip" {
   name                = "myPublicIP"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
   allocation_method   = "Dynamic"
 }
 
 # Create Network Security Group and rule
 resource "azurerm_network_security_group" "my_terraform_nsg" {
   name                = "myNetworkSecurityGroup"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
 
   security_rule {
     name                       = "SSH"
@@ -53,8 +49,8 @@ resource "azurerm_network_security_group" "my_terraform_nsg" {
 # Create network interface
 resource "azurerm_network_interface" "my_terraform_nic" {
   name                = "myNIC"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
 
   ip_configuration {
     name                          = "my_nic_configuration"
@@ -73,8 +69,7 @@ resource "azurerm_network_interface_security_group_association" "example" {
 # Generate random text for a unique storage account name
 resource "random_id" "random_id" {
   keepers = {
-    # Generate a new ID only when a new resource group is defined
-    resource_group = azurerm_resource_group.rg.name
+    resource_group = data.azurerm_resource_group.main.name
   }
 
   byte_length = 8
@@ -83,8 +78,8 @@ resource "random_id" "random_id" {
 # Create storage account for boot diagnostics
 resource "azurerm_storage_account" "my_storage_account" {
   name                     = "diag${random_id.random_id.hex}"
-  location                 = azurerm_resource_group.rg.location
-  resource_group_name      = azurerm_resource_group.rg.name
+  location                 = data.azurerm_resource_group.main.location
+  resource_group_name      = data.azurerm_resource_group.main.name
   account_tier             = "Standard"
   account_replication_type = "LRS"
 }
@@ -92,8 +87,8 @@ resource "azurerm_storage_account" "my_storage_account" {
 # Create virtual machine
 resource "azurerm_linux_virtual_machine" "my_terraform_vm" {
   name                  = "myVM"
-  location              = azurerm_resource_group.rg.location
-  resource_group_name   = azurerm_resource_group.rg.name
+  location              = data.azurerm_resource_group.main.location
+  resource_group_name   = data.azurerm_resource_group.main.name
   network_interface_ids = [azurerm_network_interface.my_terraform_nic.id]
   size                  = "Standard_DS1_v2"
 
