@@ -9,6 +9,10 @@ permissions:
 jobs:
   Deploy-Azure:
     runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: azure
     steps:
       - name: Azure CLI Login
         uses: azure/login@v2

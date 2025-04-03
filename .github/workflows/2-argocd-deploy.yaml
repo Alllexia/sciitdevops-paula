@@ -1,7 +1,7 @@
 name: Deploy ArgoCD
 
 on:
-  workflow_dispatch:
+  push
 
 jobs:
   deploy-argocd:
