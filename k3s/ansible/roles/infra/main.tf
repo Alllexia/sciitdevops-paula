@@ -3,7 +3,7 @@
 #################################
 terraform {
   backend "s3" {
-    bucket         = "mariusb-tf-state"
+    bucket         = "s3--b.u.c.k.e.t"
     key            = "aws/deployment.tfstate"
     region         = "eu-west-1"
     encrypt        = true
