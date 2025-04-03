@@ -3,7 +3,6 @@ terraform {
 
   required_providers {
     azapi = {
-	  use_azuread_auth = true
       source  = "azure/azapi"
       version = "~>1.5"
     }
@@ -20,4 +19,7 @@ terraform {
 
 provider "azurerm" {
   features {}
+}
+provider "azapi" {
+  use_azuread_auth = true
 }
