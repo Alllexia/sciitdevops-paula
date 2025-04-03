@@ -26,7 +26,7 @@ jobs:
         tenant-id: ${{ secrets.AZ_TENANT_ID }}
         subscription-id: ${{ secrets.AZ_SUBSCRIPTION_ID }}
     - name: Export OIDC creds for Terraform and azapi
-        run: |
+      run: |
           echo "ARM_CLIENT_ID=${{ secrets.AZ_CLIENT_ID }}" >> $GITHUB_ENV
           echo "ARM_TENANT_ID=${{ secrets.AZ_TENANT_ID }}" >> $GITHUB_ENV
           echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZ_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
