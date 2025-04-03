@@ -2,9 +2,15 @@
 data "azurerm_resource_group" "main" {
   name = var.RG_NAME
 }
-data "azurerm_resource_location" "main" {
-  name = var.RG_LOCATION
+#data "azurerm_resource_location" "main" {
+#  name = "westeurope"
+#}
+  
+resource "tls_private_key" "ssh_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
 }
+
 # Create virtual network
 resource "azurerm_virtual_network" "my_terraform_network" {
   name                = "myVnet"
@@ -110,14 +116,10 @@ resource "azurerm_linux_virtual_machine" "my_terraform_vm" {
   computer_name  = "hostname"
   admin_username = var.username
   
+ 
   admin_ssh_key {
     username   = var.username
     public_key = tls_private_key.ssh_key.public_key_openssh
-  }
-  
-  resource "tls_private_key" "ssh_key" {
-    algorithm = "RSA"
-    rsa_bits  = 4096
   }
 
   output "public_key" {
